@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"time"
 )
 
@@ -79,12 +78,47 @@ type ntpAuthenticator struct {
 	MessageDigest [128]byte
 }
 
+type NTPC_Notify struct {
+	networkdelay int // Microsecond
+	offset_sec   int // Second
+	offset_nsec  int // Nanosecond
+}
+
 type NTPC struct {
 	IP   string // NTPS IP Addr
 	PORT string // NTPS PORT
 
 	TIMEOUT    int // wait resp timeout
 	RETRYTIMES int // retry times
+
+	gettime func() time.Time
+	notify  func(NTPC_Notify)
+}
+
+func nsecToFarction(nsec int) uint32 {
+
+	var fraction float64
+
+	fraction = float64(nsec / 1000)
+	fraction = fraction * float64(2^32) / float64(10^6)
+
+	return uint32(fraction)
+}
+
+func farctionToNsec(farc uint32) int {
+	var nsec float64
+
+	nsec = float64(farc) * float64(10^6) / float64(2^32)
+
+	return int(nsec)
+}
+
+func timeToTimeStamp(t time.Time) (tmsp ntpTimeStamp) {
+
+	tmsp.Sec = uint32(t.Unix() + NTPC_JAN_1970)
+	tmsp.Farc = nsecToFarction(t.Nanosecond())
+
+	return
 }
 
 func makeLiVnMode(Li, Vn, Mode byte) byte {
@@ -95,43 +129,6 @@ func makeLiVnMode(Li, Vn, Mode byte) byte {
 	temp |= (Mode & 0x7)
 
 	return temp
-}
-
-func timeToTimeStamp(t time.Time) (tmsp ntpTimeStamp) {
-	var fraction float64
-
-	fraction = float64(t.Nanosecond() / 1000)
-	fraction = fraction * float64(2^32) / float64(10^6)
-
-	tmsp.Sec = uint32(t.Unix() + NTPC_JAN_1970)
-	tmsp.Farc = uint32(fraction)
-
-	return
-}
-
-func timeStampToTime(tmsp ntpTimeStamp) time.Time {
-	var nsec float64
-
-	nsec = float64(tmsp.Farc) * float64(10^6) / float64(2^32)
-
-	return time.Unix(int64(tmsp.Sec), int64(nsec))
-}
-
-func NewNTPC(ip, port string) *NTPC {
-
-	var ntpc = NTPC{IP: ip, PORT: port}
-
-	ntpc.TIMEOUT = NTPC_DEFAULT_TIMEOUT
-	ntpc.RETRYTIMES = NTPC_DEFAULT_RETRYTIMES
-
-	return &ntpc
-}
-
-func checkErr(err error) {
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
 }
 
 func makeNtpPacket(t time.Time) ntpPacket {
@@ -158,8 +155,8 @@ func sendNtpPacket(s net.Conn, req ntpPacket) error {
 		return err
 	}
 
-	fmt.Println("REQ: ", req)
-	fmt.Println("SENDBUF: ", buf.Len(), buf.Bytes())
+	//fmt.Println("REQ: ", req)
+	//fmt.Println("SENDBUF: ", buf.Len(), buf.Bytes())
 
 	_, err = s.Write(buf.Bytes())
 	if err != nil {
@@ -184,33 +181,65 @@ func recvNtpPacket(s net.Conn) (rsp ntpPacket, err error) {
 		return
 	}
 
-	fmt.Println("RECV_BUF:", cnt, buf[:cnt])
+	//fmt.Println("RECV_BUF:", cnt, buf[:cnt])
 
 	iobuf := bytes.NewReader(buf[:cnt])
 	err = binary.Read(iobuf, binary.BigEndian, &rsp)
+
 	return
 }
 
-func calcDiffTime(req, rsp ntpPacket) (dly, off ntpTimeStamp) {
+func calcDiffTime(req, rsp ntpPacket, tm time.Time) NTPC_Notify {
 	var t1, t2, t3, t4 ntpTimeStamp
+	var nty NTPC_Notify
+	var dly, off ntpTimeStamp
 
-	t1 = req.ReferenceTimestamp      // T1 客户端发送请求的时间
-	t2 = rsp.ReceiveTimestamp        // T2 服务器接收请求的时间
-	t3 = rsp.TransmitTimestamp       // T3 服务器答复时间
-	t4 = timeToTimeStamp(time.Now()) // T4 客户端接收答复时间
+	t1 = req.ReferenceTimestamp // T1 客户端发送请求的时间
+	t2 = rsp.ReceiveTimestamp   // T2 服务器接收请求的时间
+	t3 = rsp.TransmitTimestamp  // T3 服务器答复时间
+	t4 = timeToTimeStamp(tm)    // T4 客户端接收答复时间
 
 	dly.Sec = (t2.Sec - t1.Sec) + (t4.Sec - t3.Sec) // 计算得出网络时延
 	dly.Farc = (t2.Farc - t1.Farc) + (t4.Farc - t3.Farc)
 
-	off.Sec = (t2.Sec - t1.Sec) + (t3.Sec - t4.Sec) // 计算本地与服务器时延
-	off.Farc = (t2.Farc - t1.Farc) + (t3.Farc - t4.Farc)
+	nty.networkdelay = int(dly.Sec)*1000 + farctionToNsec(dly.Farc)/10000000
 
-	return
+	if t2.Sec > t1.Sec {
+		off.Sec = (t2.Sec - t1.Sec) + (t3.Sec - t4.Sec) // 计算本地与服务器时延
+		off.Farc = (t2.Farc - t1.Farc) + (t3.Farc - t4.Farc)
+
+		nty.offset_sec = int(off.Sec)
+		nty.offset_nsec = farctionToNsec(off.Farc)
+
+	} else {
+		off.Sec = (t1.Sec - t2.Sec) + (t4.Sec - t3.Sec) // 计算本地与服务器时延
+		off.Farc = (t1.Farc - t2.Farc) + (t4.Farc - t3.Farc)
+
+		nty.offset_sec = -int(off.Sec)
+		nty.offset_nsec = farctionToNsec(off.Farc)
+	}
+
+	return nty
+}
+
+func NewNTPC(ip, port string) *NTPC {
+
+	var ntpc = NTPC{IP: ip, PORT: port}
+
+	ntpc.TIMEOUT = NTPC_DEFAULT_TIMEOUT
+	ntpc.RETRYTIMES = NTPC_DEFAULT_RETRYTIMES
+
+	return &ntpc
+}
+
+func (n *NTPC) Config(timeout, retrytimes int) {
+	n.TIMEOUT = timeout
+	n.RETRYTIMES = retrytimes
 }
 
 func (n *NTPC) Sync() error {
 	var req, rsp ntpPacket
-	var timeout time.Time
+	var tm time.Time
 
 	socket, err := net.Dial("udp", n.IP+":"+n.PORT)
 	if err != nil {
@@ -221,15 +250,21 @@ func (n *NTPC) Sync() error {
 
 	for i := 0; i < n.RETRYTIMES; i++ {
 
-		timeout = time.Now()
-		timeout = timeout.Add(time.Duration(n.TIMEOUT) * time.Second)
+		tm = time.Now()
+		tm = tm.Add(time.Duration(n.TIMEOUT) * time.Second)
 
-		err = socket.SetDeadline(timeout)
+		err = socket.SetDeadline(tm)
 		if err != nil {
 			return err
 		}
 
-		req = makeNtpPacket(time.Now())
+		if nil != n.gettime {
+			tm = n.gettime()
+		} else {
+			tm = time.Now()
+		}
+
+		req = makeNtpPacket(tm)
 
 		err = sendNtpPacket(socket, req)
 		if err != nil {
@@ -245,17 +280,23 @@ func (n *NTPC) Sync() error {
 		break
 	}
 
-	fmt.Println("REQ:", req)
-	fmt.Println("RSP:", rsp)
+	//fmt.Println("REQ:", req)
+	//fmt.Println("RSP:", rsp)
 
-	dly, off := calcDiffTime(req, rsp)
+	if nil != n.gettime {
+		tm = n.gettime()
+	} else {
+		tm = time.Now()
+	}
 
-	netdly := timeStampToTime(dly)
-	offset := timeStampToTime(off)
+	nty := calcDiffTime(req, rsp, tm)
 
-	fmt.Println("NetDelay:", netdly.Nanosecond()/int(time.Microsecond))
-
-	fmt.Println("Offser:", offset.Second())
+	if nil != n.notify {
+		n.notify(nty)
+	} else {
+		fmt.Printf("NetDelay: %d ms\r\n", nty.networkdelay)
+		fmt.Printf("Offset: %d.%09d s.ns\r\n", nty.offset_sec, nty.offset_nsec)
+	}
 
 	return nil
 }

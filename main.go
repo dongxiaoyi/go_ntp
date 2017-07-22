@@ -6,12 +6,16 @@ import (
 )
 
 func main() {
-	ntpc := ntp.NewNTPC("sim.ntp.org.cn", "123")
+	ntpc := ntp.NewNTPC("time.nist.gov", "123")
 
-	err := ntpc.Sync()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	ntpc.Config(1, 30)
+
+	for i := 0; i < 10000; i++ {
+		err := ntpc.Sync()
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
 	}
 
 	return
