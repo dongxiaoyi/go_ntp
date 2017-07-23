@@ -79,9 +79,9 @@ type ntpAuthenticator struct {
 }
 
 type NTPC_Notify struct {
-	networkdelay int // Microsecond
-	offset_sec   int // Second
-	offset_nsec  int // Nanosecond
+	NetWorkDelay   int // Microsecond
+	TimeOffsetSec  int // Second
+	TimeOffsetNsec int // Nanosecond
 }
 
 type NTPC struct {
@@ -202,21 +202,21 @@ func calcDiffTime(req, rsp ntpPacket, tm time.Time) NTPC_Notify {
 	dly.Sec = (t2.Sec - t1.Sec) + (t4.Sec - t3.Sec) // 计算得出网络时延
 	dly.Farc = (t2.Farc - t1.Farc) + (t4.Farc - t3.Farc)
 
-	nty.networkdelay = int(dly.Sec)*1000 + farctionToNsec(dly.Farc)/10000000
+	nty.NetWorkDelay = int(dly.Sec)*1000000 + farctionToNsec(dly.Farc)/1000
 
 	if t2.Sec > t1.Sec {
 		off.Sec = (t2.Sec - t1.Sec) + (t3.Sec - t4.Sec) // 计算本地与服务器时延
 		off.Farc = (t2.Farc - t1.Farc) + (t3.Farc - t4.Farc)
 
-		nty.offset_sec = int(off.Sec)
-		nty.offset_nsec = farctionToNsec(off.Farc)
+		nty.TimeOffsetSec = int(off.Sec)
+		nty.TimeOffsetNsec = farctionToNsec(off.Farc)
 
 	} else {
 		off.Sec = (t1.Sec - t2.Sec) + (t4.Sec - t3.Sec) // 计算本地与服务器时延
 		off.Farc = (t1.Farc - t2.Farc) + (t4.Farc - t3.Farc)
 
-		nty.offset_sec = -int(off.Sec)
-		nty.offset_nsec = farctionToNsec(off.Farc)
+		nty.TimeOffsetSec = -int(off.Sec)
+		nty.TimeOffsetNsec = farctionToNsec(off.Farc)
 	}
 
 	return nty
@@ -235,6 +235,11 @@ func NewNTPC(ip, port string) *NTPC {
 func (n *NTPC) Config(timeout, retrytimes int) {
 	n.TIMEOUT = timeout
 	n.RETRYTIMES = retrytimes
+}
+
+func (n *NTPC) RegHandler(gettime func() time.Time, notify func(NTPC_Notify)) {
+	n.gettime = gettime
+	n.notify = notify
 }
 
 func (n *NTPC) Sync() error {
@@ -273,7 +278,7 @@ func (n *NTPC) Sync() error {
 
 		rsp, err = recvNtpPacket(socket)
 		if err != nil {
-			fmt.Println(err.Error())
+			//fmt.Println(err.Error())
 			continue
 		}
 
@@ -294,8 +299,8 @@ func (n *NTPC) Sync() error {
 	if nil != n.notify {
 		n.notify(nty)
 	} else {
-		fmt.Printf("NetDelay: %d ms\r\n", nty.networkdelay)
-		fmt.Printf("Offset: %d.%09d s.ns\r\n", nty.offset_sec, nty.offset_nsec)
+		fmt.Printf("NetDelay: %d us \r\n", nty.NetWorkDelay)
+		fmt.Printf("Offset  : %d.%09d s.ns\r\n", nty.TimeOffsetSec, nty.TimeOffsetNsec)
 	}
 
 	return nil
