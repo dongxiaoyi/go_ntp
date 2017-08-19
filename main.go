@@ -3,24 +3,27 @@ package main
 import (
 	"fmt"
 	"go_ntp/ntp"
+	"os"
 	"time"
 )
 
-func gettimebyuser() time.Time {
-	return time.Now()
+func Server() {
+
+	ntps := ntp.NewNTPS("", "1234")
+
+	ntps.Start()
+
+	for {
+		time.Sleep(1 * time.Second)
+	}
+
+	ntps.Stop()
 }
 
-func notifytime(nty ntp.NTPC_Notify) {
-	fmt.Printf("NetWorkDelay  : %d.%03d ms \r\n", nty.NetWorkDelay/1000, nty.NetWorkDelay%1000)
-	fmt.Printf("TimeOffset    : %d.%09d s.ns\r\n", nty.TimeOffsetSec, nty.TimeOffsetNsec)
-}
-
-func main() {
-	ntpc := ntp.NewNTPC("time.nist.gov", "123")
+func Client() {
+	ntpc := ntp.NewNTPC("localhost", "1234")
 
 	ntpc.Config(2, 30)
-
-	ntpc.RegHandler(gettimebyuser, notifytime)
 
 	for i := 0; i < 10000; i++ {
 		err := ntpc.Sync()
@@ -29,6 +32,19 @@ func main() {
 			return
 		}
 	}
+}
 
-	return
+func main() {
+	args := os.Args
+
+	if len(args) < 2 {
+		fmt.Println("Usage: <-s/-c>")
+	}
+
+	switch args[1] {
+	case "-s":
+		Server()
+	case "-c":
+		Client()
+	}
 }
