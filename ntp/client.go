@@ -1,121 +1,88 @@
 package ntp
 
 import (
-	"log"
+	"errors"
 	"net"
 	"time"
 )
 
-const (
-	NTPC_DEFAULT_TIMEOUT    = 10
-	NTPC_DEFAULT_RETRYTIMES = 100
-)
-
-type NTPC_Notify struct {
-	NetWorkDelay   int // Microsecond
-	TimeOffsetSec  int // Second
-	TimeOffsetNsec int // Nanosecond
+type NTPC struct {
+	ServerAddr string
+	RequestId  uint64
 }
 
-type NTPC struct {
-	addr string
-
-	TIMEOUT    int // wait resp timeout
-	RETRYTIMES int // retry times
-
-	gettime func() time.Time
-	notify  func(NTPC_Notify)
+type Result struct {
+	Offset, NetDelay TimeStamp
 }
 
 func NewNTPC(ip, port string) *NTPC {
-
-	var ntpc = NTPC{addr: ip + ":" + port}
-
-	ntpc.TIMEOUT = NTPC_DEFAULT_TIMEOUT
-	ntpc.RETRYTIMES = NTPC_DEFAULT_RETRYTIMES
-
+	var ntpc = NTPC{ServerAddr: ip + ":" + port}
+	ntpc.RequestId = uint64(time.Now().Nanosecond())
 	return &ntpc
 }
 
-func (n *NTPC) Config(timeout, retrytimes int) {
-	n.TIMEOUT = timeout
-	n.RETRYTIMES = retrytimes
-}
-
-func (n *NTPC) RegHandler(gettime func() time.Time, notify func(NTPC_Notify)) {
-	n.gettime = gettime
-	n.notify = notify
-}
-
-var requestid uint64
-
-func (n *NTPC) Sync() error {
+func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 
 	var buf [4096]byte
 	var req Packet
 
-	socket, err := net.Dial("udp", n.addr)
+	socket, err := net.Dial("udp", n.ServerAddr)
 	if err != nil {
-		return err
+		return
 	}
 
 	defer socket.Close()
 
-	for {
+	n.RequestId++
 
-		time.Sleep(5 * time.Second)
+	req.Version = 100
+	req.RequestId = n.RequestId
 
-		req.Version = 100
-		req.RequestId = requestid
-
-		requestid++
-
-		req.T1 = GetTimeStamp()
-
-		newbuf, err := CodePacket(req)
-		if err != nil {
-			return err
-		}
-
-		n, err := socket.Write(newbuf)
-		if err != nil {
-			return err
-		}
-
-		n, err = socket.Read(buf[0:])
-		if err != nil {
-			return err
-		}
-
-		if n != DEFAULT_PACKET_SIZE {
-			log.Println("recv a packet not recognized ", buf[0:n])
-			continue
-		}
-
-		req, err = DecodePacket(buf[0:n])
-		if err != nil {
-			log.Println(err.Error())
-			continue
-		}
-
-		if req.RequestId != requestid-1 {
-			log.Println("recv a old packet ", req)
-			continue
-		}
-
-		req.T4 = GetTimeStamp()
-
-		log.Println(req)
-
-		calcDiffTime(req)
+	err = socket.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
+	if err != nil {
+		return
 	}
 
-	return nil
+	req.T1 = GetTimeStamp()
+
+	newbuf, err := CodePacket(req)
+	if err != nil {
+		return
+	}
+
+	_, err = socket.Write(newbuf)
+	if err != nil {
+		return
+	}
+
+	cnt, err := socket.Read(buf[0:])
+	if err != nil {
+		return
+	}
+
+	if cnt != DEFAULT_PACKET_SIZE {
+		err = errors.New("recv a packet not recognized")
+		return
+	}
+
+	req, err = DecodePacket(buf[0:cnt])
+	if err != nil {
+		return
+	}
+
+	if req.RequestId != n.RequestId {
+		err = errors.New("recv a bad packet ")
+		return
+	}
+
+	req.T4 = GetTimeStamp()
+
+	rsp = calcDiffTime(req)
+
+	return
 }
 
-func calcDiffTime(req Packet) {
-
-	var offset, netdly TimeStamp
+func calcDiffTime(req Packet) (rsp Result) {
 	var t1, t2, t3, t4 TimeStamp
 
 	t1 = req.T1 // T1 客户端发送请求的时间
@@ -126,7 +93,7 @@ func calcDiffTime(req Packet) {
 	// 计算得出网络时延
 	t2.Sub(t1)
 	t4.Sub(t3)
-	netdly = t2.Add(t4)
+	rsp.NetDelay = t2.Add(t4)
 
 	t1 = req.T1 // T1 客户端发送请求的时间
 	t2 = req.T2 // T2 服务器接收请求的时间
@@ -136,10 +103,7 @@ func calcDiffTime(req Packet) {
 	// 计算本地与服务器时延
 	t2.Sub(t1)
 	t3.Sub(t4)
-	offset = t2.Add(t3)
-
-	log.Println("NetDelay: ", netdly.Sec, netdly.Nsec)
-	log.Println("Offset: ", offset.Sec, offset.Nsec)
+	rsp.Offset = t2.Add(t3)
 
 	return
 }

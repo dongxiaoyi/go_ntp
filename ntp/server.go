@@ -77,8 +77,8 @@ func CodePacket(req Packet) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Println("REQ: ", req)
-	log.Println("SEND_BUF: ", iobuf.Len(), iobuf.Bytes())
+	//log.Println("REQ: ", req)
+	//log.Println("SEND_BUF: ", iobuf.Len(), iobuf.Bytes())
 
 	return iobuf.Bytes(), nil
 }
@@ -88,8 +88,8 @@ func DecodePacket(buf []byte) (rsp Packet, err error) {
 	iobuf := bytes.NewReader(buf)
 	err = binary.Read(iobuf, binary.BigEndian, &rsp)
 
-	log.Println("RSP: ", rsp)
-	log.Println("RECV_BUF:", len(buf), buf)
+	//log.Println("RSP: ", rsp)
+	//log.Println("RECV_BUF:", len(buf), buf)
 
 	return
 }
@@ -120,7 +120,7 @@ func msgProc(s *NTPS) {
 			continue
 		}
 
-		log.Println("recv request form ", addr.String(), req)
+		//log.Println("recv request form ", addr.String(), req)
 
 		req.T2 = T2
 		req.T3 = GetTimeStamp()

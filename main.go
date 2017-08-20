@@ -8,29 +8,28 @@ import (
 )
 
 func Server() {
-
 	ntps := ntp.NewNTPS("", "1234")
-
 	ntps.Start()
-
 	for {
 		time.Sleep(1 * time.Second)
 	}
-
 	ntps.Stop()
 }
 
 func Client() {
-	ntpc := ntp.NewNTPC("localhost", "1234")
+	ntpc := ntp.NewNTPC("192.168.0.107", "1234")
 
-	ntpc.Config(2, 30)
+	for i := 0; i < 10; i++ {
+		time.Sleep(1 * time.Second)
 
-	for i := 0; i < 10000; i++ {
-		err := ntpc.Sync()
+		result, err := ntpc.Sync(10)
 		if err != nil {
 			fmt.Println(err.Error())
-			return
+			break
 		}
+
+		fmt.Printf("offset %d.%09d sec.nanosec \r\n", result.Offset.Sec, result.Offset.Nsec)
+		fmt.Printf("netdelay %.3f ms \r\n", float32(result.NetDelay.Nsec)/float32(time.Millisecond))
 	}
 }
 
