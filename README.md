@@ -6,4 +6,4 @@ A simple time synchronization library based on NTP principle
 ### Features
 
 - Time synchronization service & client
-- Usage method, Please to see main.go
+- Usage method, Please to see [@main.go](https://github.com/lixiangyun/go_ntp/blob/master/main.go)
