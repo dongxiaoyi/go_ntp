@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// 服务端demo
 func Server() {
 	ntps := ntp.NewNTPS("", "1234")
 	ntps.Start()
@@ -16,6 +17,7 @@ func Server() {
 	ntps.Stop()
 }
 
+// 客户端demo
 func Client() {
 	ntpc := ntp.NewNTPC("192.168.0.107", "1234")
 

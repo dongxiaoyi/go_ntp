@@ -7,25 +7,30 @@ import (
 )
 
 type NTPC struct {
-	ServerAddr string
-	RequestId  uint64
+	ServerAddr string // 时间服务器地址
+	RequestId  uint64 // 请求报文的序列号（用于校验）
 }
 
 type Result struct {
-	Offset, NetDelay TimeStamp
+	Offset   TimeStamp // 本地时间与服务器时间的差，负数表示本地时间快于服务器时间，正数表示本地时间慢于服务器时间；
+	NetDelay TimeStamp // 本次请求的网络时延
 }
 
+// 申请一个NTPC客户端对象，并且初始化服务端地址
 func NewNTPC(ip, port string) *NTPC {
 	var ntpc = NTPC{ServerAddr: ip + ":" + port}
 	ntpc.RequestId = uint64(time.Now().Nanosecond())
 	return &ntpc
 }
 
+// 发起时间同步请求，输入timeout超时时间，用于udp超时，单位秒
+// 返回Result结果包括网络传输时延、时间偏移
 func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 
 	var buf [4096]byte
 	var req Packet
 
+	// 创建udp协议的socket服务
 	socket, err := net.Dial("udp", n.ServerAddr)
 	if err != nil {
 		return
@@ -35,9 +40,11 @@ func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 
 	n.RequestId++
 
+	// 初始化请求报文内容
 	req.Version = 100
 	req.RequestId = n.RequestId
 
+	// 设置 read/write 超时时间
 	err = socket.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
 	if err != nil {
 		return
@@ -45,31 +52,37 @@ func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 
 	req.T1 = GetTimeStamp()
 
+	// 序列化请求报文
 	newbuf, err := CodePacket(req)
 	if err != nil {
 		return
 	}
 
+	// 发送到服务端
 	_, err = socket.Write(newbuf)
 	if err != nil {
 		return
 	}
 
+	// 获取服务端应答报文
 	cnt, err := socket.Read(buf[0:])
 	if err != nil {
 		return
 	}
 
+	// 校验应答报文大小
 	if cnt != DEFAULT_PACKET_SIZE {
 		err = errors.New("recv a packet not recognized")
 		return
 	}
 
+	// 反序列化报文
 	req, err = DecodePacket(buf[0:cnt])
 	if err != nil {
 		return
 	}
 
+	// 校验请求的序号是否一致
 	if req.RequestId != n.RequestId {
 		err = errors.New("recv a bad packet ")
 		return
@@ -77,6 +90,7 @@ func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 
 	req.T4 = GetTimeStamp()
 
+	// 参考ntp的网络校时，计算出本地与服务器的时差
 	rsp = calcDiffTime(req)
 
 	return
@@ -103,7 +117,8 @@ func calcDiffTime(req Packet) (rsp Result) {
 	// 计算本地与服务器时延
 	t2.Sub(t1)
 	t3.Sub(t4)
-	rsp.Offset = t2.Add(t3)
+	t2.Add(t3)
+	rsp.Offset = t2.Div(2)
 
 	return
 }

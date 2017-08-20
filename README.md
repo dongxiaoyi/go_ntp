@@ -1,12 +1,9 @@
 # go_ntp
-ntp server &amp; client module base on golang
+A simple time synchronization library based on NTP principle
 
-## v0.1 Explain
+## v0.1
 
 ### Features
 
-- Support ntp v3 client base on golang
-
-### Next Plan
-
-- Will suport ntp v3 server and auth mode
+- Time synchronization service & client
+- Usage method, Please to see main.go
