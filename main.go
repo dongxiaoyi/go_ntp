@@ -19,7 +19,7 @@ func Server() {
 
 // 客户端demo
 func Client() {
-	ntpc := ntp.NewNTPC("192.168.0.107", "1234")
+	ntpc := ntp.NewNTPC("localhost", "1234")
 
 	for i := 0; i < 10; i++ {
 		time.Sleep(1 * time.Second)
@@ -31,7 +31,7 @@ func Client() {
 		}
 
 		fmt.Printf("offset %d.%09d sec.nanosec \r\n", result.Offset.Sec, result.Offset.Nsec)
-		fmt.Printf("netdelay %.3f ms \r\n", float32(result.NetDelay.Nsec)/float32(time.Millisecond))
+		fmt.Printf("netdelay %.3f ms \r\n", float64(result.NetDelay.Nsec)/float64(time.Millisecond))
 	}
 }
 

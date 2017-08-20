@@ -51,7 +51,7 @@ func GetTimeStamp() TimeStamp {
 func (t *TimeStamp) Sub(s TimeStamp) TimeStamp {
 	t.Sec = t.Sec - s.Sec
 
-	if t.Nsec > s.Nsec {
+	if t.Nsec >= s.Nsec {
 		t.Nsec = t.Nsec - s.Nsec
 	} else {
 		t.Nsec = int64(time.Second) + t.Nsec - s.Nsec
@@ -66,7 +66,7 @@ func (t *TimeStamp) Add(a TimeStamp) TimeStamp {
 	t.Sec = t.Sec + a.Sec
 	t.Nsec = t.Nsec + a.Nsec
 
-	if t.Nsec > int64(time.Second) {
+	if t.Nsec >= int64(time.Second) {
 		t.Nsec = t.Nsec - int64(time.Second)
 		t.Sec++
 	}
