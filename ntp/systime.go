@@ -18,7 +18,7 @@ func linux(tm time.Time) error {
 		tm.Hour(), tm.Minute(), tm.Second(),
 		time.Duration(tm.Nanosecond())/time.Millisecond)
 
-	//log.Println(settime)
+	log.Println(settime)
 
 	log.Println("set time to [", tm, "]")
 
@@ -37,12 +37,13 @@ func win32(tm time.Time) error {
 		tm.Hour(), tm.Minute(), tm.Second(),
 		time.Duration(tm.Nanosecond())/(10*time.Millisecond))
 
-	//log.Println(settime)
+	log.Println(settime)
 
 	log.Println("set time to [", tm, "]")
 
-	cmd := exec.Command("cmd", settime)
-	err := cmd.Run()
+	cmd := exec.Command("cmd.exe", "-c", settime)
+
+	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
 	}

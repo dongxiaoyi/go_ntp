@@ -38,6 +38,8 @@ func Client() {
 func main() {
 	args := os.Args
 
+	//TestAddTime()
+
 	if len(args) < 2 {
 		fmt.Println("Usage: <-s/-c>")
 	}
