@@ -128,15 +128,13 @@ func DecodePacket(buf []byte) (rsp Packet, err error) {
 func msgProc(s *NTPS) {
 
 	defer s.wait.Done()
-
 	var buf [4096]byte
 
 	for {
-
 		// 监听
 		n, addr, err := s.conn.ReadFromUDP(buf[0:])
 		if err != nil {
-			log.Println("socket disable. ", s.conn.RemoteAddr())
+			log.Println("socket close.")
 			return
 		}
 
