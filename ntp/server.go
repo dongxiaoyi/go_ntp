@@ -36,10 +36,20 @@ type NTPS struct {
 	wait    sync.WaitGroup
 }
 
+func TimeStampToTime(offset TimeStamp, now time.Time) time.Time {
+
+	tm := time.Duration(offset.Nsec) + time.Duration(offset.Sec)*time.Second
+
+	if tm > 0 {
+		now.Add(tm)
+	}
+
+	return now
+}
+
 // 将本地时间转换为 TimeStamp 结构
-func GetTimeStamp() TimeStamp {
+func TimeToTimeStamp(now time.Time) TimeStamp {
 	var tm TimeStamp
-	now := time.Now()
 
 	tm.Sec = now.Unix()
 	tm.Nsec = int64(now.Nanosecond())
@@ -139,7 +149,7 @@ func msgProc(s *NTPS) {
 		}
 
 		// 获取服务器本地时间
-		T2 := GetTimeStamp()
+		T2 := TimeToTimeStamp(time.Now())
 
 		// 校验报文大小是否符合预期
 		if n != DEFAULT_PACKET_SIZE {
@@ -157,7 +167,7 @@ func msgProc(s *NTPS) {
 		//log.Println("recv request form ", addr.String(), req)
 
 		req.T2 = T2
-		req.T3 = GetTimeStamp()
+		req.T3 = TimeToTimeStamp(time.Now())
 
 		// 将本地结构序列化
 		newbuf, err := CodePacket(req)

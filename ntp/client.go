@@ -50,7 +50,7 @@ func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 		return
 	}
 
-	req.T1 = GetTimeStamp()
+	req.T1 = TimeToTimeStamp(time.Now())
 
 	// 序列化请求报文
 	newbuf, err := CodePacket(req)
@@ -88,7 +88,7 @@ func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 		return
 	}
 
-	req.T4 = GetTimeStamp()
+	req.T4 = TimeToTimeStamp(time.Now())
 
 	// 参考ntp的网络校时，计算出本地与服务器的时差
 	rsp = calcDiffTime(req)

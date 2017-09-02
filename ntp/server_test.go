@@ -2,6 +2,7 @@ package ntp
 
 import (
 	"testing"
+	"time"
 )
 
 func TestServerStart01(t *testing.T) {
@@ -50,6 +51,81 @@ func TestTimeStamp03(t *testing.T) {
 	}
 
 	if tm2.Sec != 9 || tm2.Nsec != 999999999 {
+		t.Error(tm1, tm2)
+	}
+}
+
+func TestTimeToTimeStamp01(t *testing.T) {
+	tm1 := time.Now()
+	tmstamp := TimeToTimeStamp(tm1)
+
+	if tmstamp.Sec != tm1.Unix() {
+		t.Error(tm1, tmstamp)
+	}
+
+	if tmstamp.Nsec != int64(tm1.Nanosecond()) {
+		t.Error(tm1, tmstamp)
+	}
+
+}
+
+func TestTimeStampToTime01(t *testing.T) {
+	var offset TimeStamp
+	tm1 := time.Now()
+	tm2 := TimeStampToTime(offset, tm1)
+
+	if tm2 != tm1 {
+		t.Error(tm1, tm2)
+	}
+}
+
+func TestTimeStampToTime02(t *testing.T) {
+	var offset TimeStamp
+	tm1 := time.Now()
+	tm2 := TimeStampToTime(offset, tm1)
+
+	if tm2 != tm1 {
+		t.Error(tm1, tm2)
+	}
+}
+
+func TestTimeStampToTime03(t *testing.T) {
+	var offset TimeStamp
+
+	offset.Sec = -1
+	offset.Nsec = 0
+
+	tm1 := time.Now()
+	tm2 := TimeStampToTime(offset, tm1)
+
+	if tm2.Unix() != tm1.Unix()-1 || tm2.Nanosecond() != tm1.Nanosecond() {
+		t.Error(tm1, tm2)
+	}
+
+	offset.Sec = 1
+	offset.Nsec = 0
+
+	tm2 = TimeStampToTime(offset, tm1)
+
+	if tm2.Unix() != tm1.Unix()+1 || tm2.Nanosecond() != tm1.Nanosecond() {
+		t.Error(tm1, tm2)
+	}
+
+	offset.Sec = 0
+	offset.Nsec = 1
+
+	tm2 = TimeStampToTime(offset, tm1)
+
+	if tm2.Unix() != tm1.Unix() || tm2.Nanosecond() != tm1.Nanosecond()+1 {
+		t.Error(tm1, tm2)
+	}
+
+	offset.Sec = 0
+	offset.Nsec = -1
+
+	tm2 = TimeStampToTime(offset, tm1)
+
+	if tm2.Unix() != tm1.Unix() || tm2.Nanosecond() != tm1.Nanosecond()-1 {
 		t.Error(tm1, tm2)
 	}
 }
