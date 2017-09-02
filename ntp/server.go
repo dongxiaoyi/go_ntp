@@ -10,13 +10,8 @@ import (
 )
 
 const (
-	DEFAULT_PACKET_SIZE = 10 * 8 // udp报文大小
+	DEFAULT_PACKET_SIZE = 6 * 8 // udp报文大小
 )
-
-type TimeStamp struct {
-	Sec  int64 // 秒
-	Nsec int64 // 纳秒
-}
 
 // UDP报文结构信息
 type Packet struct {
@@ -34,77 +29,6 @@ type NTPS struct {
 	addr    string
 	conn    *net.UDPConn
 	wait    sync.WaitGroup
-}
-
-func TimeStampToTime(offset TimeStamp, now time.Time) time.Time {
-
-	tm := time.Duration(offset.Nsec) + time.Duration(offset.Sec)*time.Second
-
-	if tm > 0 {
-		now.Add(tm)
-	}
-
-	return now
-}
-
-// 将本地时间转换为 TimeStamp 结构
-func TimeToTimeStamp(now time.Time) TimeStamp {
-	var tm TimeStamp
-
-	tm.Sec = now.Unix()
-	tm.Nsec = int64(now.Nanosecond())
-
-	return tm
-}
-
-// TimeStamp时间sub操作
-func (t *TimeStamp) Sub(s TimeStamp) TimeStamp {
-	t.Sec = t.Sec - s.Sec
-
-	if t.Nsec >= s.Nsec {
-		t.Nsec = t.Nsec - s.Nsec
-	} else {
-		t.Nsec = int64(time.Second) + t.Nsec - s.Nsec
-		t.Sec--
-	}
-
-	return *t
-}
-
-// TimeStamp时间add操作
-func (t *TimeStamp) Add(a TimeStamp) TimeStamp {
-	t.Sec = t.Sec + a.Sec
-	t.Nsec = t.Nsec + a.Nsec
-
-	if t.Nsec >= int64(time.Second) {
-		t.Nsec = t.Nsec - int64(time.Second)
-		t.Sec++
-	}
-
-	return *t
-}
-
-// TimeStamp时间除操作
-func (t *TimeStamp) Div(d int64) TimeStamp {
-
-	total := t.Sec*int64(time.Second) + t.Nsec
-
-	if total < 0 {
-
-		total = -total
-		total = total / d
-
-		t.Sec = -(total / int64(time.Second))
-		t.Nsec = total % int64(time.Second)
-
-	} else {
-		total = total / d
-
-		t.Sec = total / int64(time.Second)
-		t.Nsec = total % int64(time.Second)
-	}
-
-	return *t
 }
 
 // 报文序列化

@@ -2,6 +2,7 @@ package ntp
 
 import (
 	"testing"
+	"time"
 )
 
 var ntps *NTPS
@@ -25,11 +26,11 @@ func TestClient01(t *testing.T) {
 			break
 		}
 
-		if result.NetDelay.Sec > 0 {
+		if result.NetDelay.NanoSecond > int64(time.Second) {
 			t.Error(result)
 		}
 
-		if result.Offset.Sec > 0 {
+		if result.Offset.NanoSecond > int64(time.Second) {
 			t.Error(result)
 		}
 	}

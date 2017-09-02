@@ -19,9 +19,9 @@ func Server() {
 
 // 客户端demo
 func Client() {
-	ntpc := ntp.NewNTPC("localhost", "1234")
+	ntpc := ntp.NewNTPC("192.168.0.101", "1234")
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1000; i++ {
 		time.Sleep(1 * time.Second)
 
 		result, err := ntpc.Sync(10)
@@ -30,18 +30,26 @@ func Client() {
 			break
 		}
 
-		fmt.Printf("offset %d.%09d sec.nanosec \r\n", result.Offset.Sec, result.Offset.Nsec)
-		fmt.Printf("netdelay %.3f ms \r\n", float64(result.NetDelay.Nsec)/float64(time.Millisecond))
+		fmt.Printf("offset %.3f ms \r\n", float64(result.Offset.NanoSecond)/float64(time.Millisecond))
+		fmt.Printf("netdelay %.3f ms \r\n", float64(result.NetDelay.NanoSecond)/float64(time.Millisecond))
+
+		if result.Offset.Abs() > int64(time.Second) {
+			now := ntp.TimeStampToTime(result.Offset, time.Now())
+			err = ntp.SetTimeToOs(now)
+			if err != nil {
+				fmt.Println(err.Error())
+				break
+			}
+		}
 	}
 }
 
 func main() {
 	args := os.Args
 
-	//TestAddTime()
-
 	if len(args) < 2 {
 		fmt.Println("Usage: <-s/-c>")
+		return
 	}
 
 	switch args[1] {
