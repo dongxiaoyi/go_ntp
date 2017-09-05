@@ -26,6 +26,14 @@ func (t *TimeStamp) Abs() int64 {
 	return t.NanoSecond
 }
 
+// 获取绝对值（正负1）
+func (t *TimeStamp) AbsValue() int64 {
+	if t.NanoSecond < 0 {
+		return -1
+	}
+	return 1
+}
+
 // TimeStamp时间sub操作
 func (t *TimeStamp) Sub(s TimeStamp) TimeStamp {
 	t.NanoSecond = t.NanoSecond - s.NanoSecond
