@@ -17,8 +17,8 @@ type Result struct {
 }
 
 // 申请一个NTPC客户端对象，并且初始化服务端地址
-func NewNTPC(ip, port string) *NTPC {
-	var ntpc = NTPC{ServerAddr: ip + ":" + port}
+func NewNTPC(addr string) *NTPC {
+	var ntpc = NTPC{ServerAddr: addr}
 	ntpc.RequestId = uint64(time.Now().Nanosecond())
 	return &ntpc
 }
