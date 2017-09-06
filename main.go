@@ -46,11 +46,16 @@ func Client() {
 			}
 		}
 
+		if count < 5 {
+			fmt.Println("sync time from ntp service failed!")
+			continue
+		}
+
 		result.NetDelay.Div(count)
 		result.Offset.Div(count)
 
-		fmt.Printf("offset %.3f ms \r\n", float64(result.Offset.NanoSecond)/float64(time.Millisecond))
-		fmt.Printf("netdelay %.3f ms \r\n", float64(result.NetDelay.NanoSecond)/float64(time.Millisecond))
+		fmt.Printf("OffSet   %.3f ms \r\n", float64(result.Offset.NanoSecond)/float64(time.Millisecond))
+		fmt.Printf("NetDelay %.3f ms \r\n", float64(result.NetDelay.NanoSecond)/float64(time.Millisecond))
 
 		if result.Offset.Abs() > int64(time.Second) {
 			now := ntp.TimeStampToTime(result.Offset, time.Now())
@@ -61,13 +66,10 @@ func Client() {
 				fmt.Println(err.Error())
 				break
 			}
-		} else if result.Offset.Abs() > 100*int64(time.Millisecond) {
-			mul := result.Offset.Abs() / (100 * int64(time.Millisecond))
+		} else if result.Offset.Abs() > 50*int64(time.Millisecond) {
 
-			var offset ntp.TimeStamp
-			offset.NanoSecond = 25 * mul * result.Offset.AbsValue() * int64(time.Millisecond)
-			now := ntp.TimeStampToTime(offset, time.Now())
-			fmt.Println(result.Offset, offset)
+			now := ntp.TimeStampToTime(result.Offset.Div(4), time.Now())
+			fmt.Println(result.Offset)
 
 			err := ntp.SetTimeToOs(now)
 			if err != nil {
