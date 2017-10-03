@@ -8,6 +8,7 @@ type TimeStamp struct {
 	NanoSecond int64 // 纳秒
 }
 
+// TimeStamp 时间结构转换 Time 类型
 func TimeStampToTime(offset TimeStamp, now time.Time) time.Time {
 	return now.Add(time.Duration(offset.NanoSecond))
 }

@@ -51,6 +51,7 @@ func win32(tm time.Time) error {
 	return nil
 }
 
+// 设置时间到os
 func SetTimeToOs(tm time.Time) error {
 
 	switch ostype {
