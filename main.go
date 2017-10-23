@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"go_ntp/ntp"
 	"log"
 	"os"
 	"time"
+
+	"github.com/lixiangyun/go_ntp/ntp"
 )
 
 // 服务端demo
