@@ -52,3 +52,16 @@ func (t *TimeStamp) Div(d int64) TimeStamp {
 	t.NanoSecond = t.NanoSecond / d
 	return *t
 }
+
+// 求TimeStamp时间平均值
+func TimeStampAverage(d []TimeStamp) TimeStamp {
+	var result TimeStamp
+	if len(d) == 0 {
+		return result
+	}
+	var sum TimeStamp
+	for _, v := range d {
+		sum.Add(v)
+	}
+	return sum.Div(int64(len(d)))
+}
