@@ -2,13 +2,15 @@ package ntp
 
 import (
 	"errors"
+	"log"
 	"net"
 	"time"
 )
 
 type NTPC struct {
-	ServerAddr string // 时间服务器地址
-	RequestId  uint64 // 请求报文的序列号（用于校验）
+	ServerAddr string        // 时间服务器地址
+	RequestId  uint64        // 请求报文的序列号（用于校验）
+	TimeOut    time.Duration // 通信超时时间
 }
 
 type Result struct {
@@ -17,15 +19,30 @@ type Result struct {
 }
 
 // 申请一个NTPC客户端对象，并且初始化服务端地址
-func NewNTPC(addr string) *NTPC {
-	var ntpc = NTPC{ServerAddr: addr}
+func NewNTPC(addr string, timeout time.Duration) *NTPC {
+	var ntpc = NTPC{ServerAddr: addr, TimeOut: timeout}
 	ntpc.RequestId = uint64(time.Now().Nanosecond())
 	return &ntpc
 }
 
-// 发起时间同步请求，输入timeout超时时间，用于udp超时，单位秒
+// 发起时间同步请求
 // 返回Result结果包括网络传输时延、时间偏移
-func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
+func (n *NTPC) SyncBatch(times int) []Result {
+	rsp := make([]Result, 0)
+	for i := 0; i < times; i++ {
+		res, err := n.SyncOnce()
+		if err != nil {
+			log.Println("sync batch failed! ", err.Error())
+			continue
+		}
+		rsp = append(rsp, res)
+	}
+	return rsp
+}
+
+// 发起时间同步请求
+// 返回Result结果包括网络传输时延、时间偏移
+func (n *NTPC) SyncOnce() (rsp Result, err error) {
 
 	var buf [4096]byte
 	var req Packet
@@ -45,7 +62,7 @@ func (n *NTPC) Sync(timeout int) (rsp Result, err error) {
 	req.RequestId = n.RequestId
 
 	// 设置 read/write 超时时间
-	err = socket.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
+	err = socket.SetDeadline(time.Now().Add(n.TimeOut))
 	if err != nil {
 		return
 	}
@@ -121,4 +138,25 @@ func calcDiffTime(req Packet) (rsp Result) {
 	rsp.Offset = t2.Div(2)
 
 	return
+}
+
+// 计算多个结果的平均值
+func ResultAverage(arys []Result) Result {
+
+	// 网络时延统计
+	var count int64
+	var res Result
+	for _, v := range arys {
+		if v.NetDelay.NanoSecond > 0 {
+			res.NetDelay.Add(v.NetDelay)
+			res.Offset.Add(v.Offset)
+			count++
+		}
+	}
+
+	// 计算网络时延、时间偏移的平均值
+	res.NetDelay.Div(count)
+	res.Offset.Div(count)
+
+	return res
 }
