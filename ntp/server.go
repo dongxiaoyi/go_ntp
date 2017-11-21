@@ -113,8 +113,8 @@ func msgProc(s *NTPS) {
 }
 
 // 申请时间服务器对象，并且初始化地址+端口
-func NewNTPS(ip, port string) *NTPS {
-	return &NTPS{addr: ip + ":" + port}
+func NewNTPS(addr string) *NTPS {
+	return &NTPS{addr: addr}
 }
 
 // 启动时间服务
