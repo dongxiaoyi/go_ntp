@@ -29,13 +29,14 @@ func NewNTPC(addr string, timeout time.Duration) *NTPC {
 // 返回Result结果包括网络传输时延、时间偏移
 func (n *NTPC) SyncBatch(times int) []Result {
 	rsp := make([]Result, 0)
-	for i := 0; i < times; i++ {
+	for i := 0; i < times; {
 		res, err := n.SyncOnce()
 		if err != nil {
 			log.Println("sync batch failed! ", err.Error())
 			continue
 		}
 		rsp = append(rsp, res)
+		i++
 	}
 	return rsp
 }
@@ -144,19 +145,18 @@ func calcDiffTime(req Packet) (rsp Result) {
 func ResultAverage(arys []Result) Result {
 
 	// 网络时延统计
-	var count int64
 	var res Result
+
 	for _, v := range arys {
 		if v.NetDelay.NanoSecond > 0 {
 			res.NetDelay.Add(v.NetDelay)
 			res.Offset.Add(v.Offset)
-			count++
 		}
 	}
 
 	// 计算网络时延、时间偏移的平均值
-	res.NetDelay.Div(count)
-	res.Offset.Div(count)
+	res.NetDelay.Div(len(arys))
+	res.Offset.Div(len(arys))
 
 	return res
 }

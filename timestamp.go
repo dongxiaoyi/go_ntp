@@ -48,8 +48,8 @@ func (t *TimeStamp) Add(a TimeStamp) TimeStamp {
 }
 
 // TimeStamp时间除操作
-func (t *TimeStamp) Div(d int64) TimeStamp {
-	t.NanoSecond = t.NanoSecond / d
+func (t *TimeStamp) Div(d int) TimeStamp {
+	t.NanoSecond = t.NanoSecond / int64(d)
 	return *t
 }
 
@@ -63,5 +63,5 @@ func TimeStampAverage(d []TimeStamp) TimeStamp {
 	for _, v := range d {
 		sum.Add(v)
 	}
-	return sum.Div(int64(len(d)))
+	return sum.Div(len(d))
 }
