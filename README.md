@@ -1,6 +1,8 @@
 # go_ntp
 A simple time synchronization library based on NTP principle
 
+![](https://travis-ci.com/lixiangyun/go_ntp.svg?branch=master)
+
 ## Features
 
 - Time synchronization [service](https://github.com/lixiangyun/go_ntp/blob/master/ntp/server.go) & [client](https://github.com/lixiangyun/go_ntp/blob/master/ntp/client.go)
