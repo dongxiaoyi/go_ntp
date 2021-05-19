@@ -2,7 +2,6 @@ package ntp
 
 import (
 	"errors"
-	"log"
 	"net"
 	"time"
 )
@@ -27,18 +26,20 @@ func NewNTPC(addr string, timeout time.Duration) *NTPC {
 
 // 发起时间同步请求
 // 返回Result结果包括网络传输时延、时间偏移
-func (n *NTPC) SyncBatch(times int) []Result {
+// 发起时间同步请求
+// 返回Result结果包括网络传输时延、时间偏移
+func (n *NTPC) SyncBatch(times int) ([]Result, error) {
 	rsp := make([]Result, 0)
 	for i := 0; i < times; {
 		res, err := n.SyncOnce()
 		if err != nil {
-			log.Println("sync batch failed! ", err.Error())
-			continue
+			return rsp, err
+			//continue
 		}
 		rsp = append(rsp, res)
 		i++
 	}
-	return rsp
+	return rsp, nil
 }
 
 // 发起时间同步请求
